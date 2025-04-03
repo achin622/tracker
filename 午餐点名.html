@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>午餐点名系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { display: flex; justify-content: space-between; flex-wrap: wrap; }
+        .grade-section { width: 32%; min-width: 300px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid black; padding: 6px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        button { font-size: 14px; padding: 3px; }
+        td:nth-child(1) { width: 10%; }
+        td:nth-child(3), td:nth-child(4) { width: 15%; }
+        .status-eaten { background-color: lightgreen; }
+        .status-not-eaten { background-color: lightcoral; }
+        .status-activity { background-color: lightblue; }
+        .status-absent { background-color: lightyellow; }
+        .status-withdrawn { background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <h1>午餐点名系统</h1>
+    <label for="datePicker">选择日期：</label>
+    <input type="date" id="datePicker">
+    
+    <div class="container" id="attendance-container"></div>
+    
+    <script>
+        const studentsData = {
+            '四年级': [...Array(30).keys()].map(i => [i + 1, `四年级学生${i + 1}`]),
+            '五年级': [...Array(30).keys()].map(i => [i + 1, `五年级学生${i + 1}`]),
+            '六年级': [...Array(30).keys()].map(i => [i + 1, `六年级学生${i + 1}`])
+        };
+
+        function getStoredData(date) {
+            return JSON.parse(localStorage.getItem(`attendance-${date}`)) || {};
+        }
+
+        function saveData(date, data) {
+            localStorage.setItem(`attendance-${date}`, JSON.stringify(data));
+        }
+
+        function createTable(grade, students, date) {
+            const container = document.getElementById('attendance-container');
+            const section = document.createElement('div');
+            section.classList.add('grade-section');
+            section.innerHTML = `<h2>${grade}</h2>`;
+            
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>编号</th>
+                        <th>姓名</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${students.map(([id, name]) => {
+                        let storedStatus = getStoredData(date)[`${grade}-${id}`] || '未吃';
+                        return `
+                            <tr>
+                                <td>${id}</td>
+                                <td>${name}</td>
+                                <td><button class="status-btn" onclick="toggleStatus(this, '${grade}', ${id}, '${date}')">${storedStatus}</button></td>
+                                <td><button onclick="removeStudent(this)">删除</button></td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            `;
+            
+            section.appendChild(table);
+            container.appendChild(section);
+        }
+
+        function toggleStatus(button, grade, id, date) {
+            const statuses = ['未吃', '已吃', '活动', '缺席', '退学'];
+            let currentIndex = statuses.indexOf(button.textContent);
+            let newStatus = statuses[(currentIndex + 1) % statuses.length];
+            button.textContent = newStatus;
+            updateButtonColor(button, newStatus);
+            
+            let data = getStoredData(date);
+            data[`${grade}-${id}`] = newStatus;
+            saveData(date, data);
+        }
+
+        function updateButtonColor(button, status) {
+            button.className = 'status-btn';
+            if (status === '已吃') button.classList.add('status-eaten');
+            else if (status === '未吃') button.classList.add('status-not-eaten');
+            else if (status === '活动') button.classList.add('status-activity');
+            else if (status === '缺席') button.classList.add('status-absent');
+            else if (status === '退学') button.classList.add('status-withdrawn');
+        }
+
+        function removeStudent(button) {
+            const row = button.parentElement.parentElement;
+            row.style.textDecoration = 'line-through';
+        }
+
+        function loadAttendance(date) {
+            document.getElementById('attendance-container').innerHTML = '';
+            Object.keys(studentsData).forEach(grade => {
+                createTable(grade, studentsData[grade], date);
+            });
+        }
+
+        document.getElementById('datePicker').addEventListener('change', function() {
+            loadAttendance(this.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('datePicker').value = today;
+            loadAttendance(today);
+        });
+    </script>
+</body>
+</html>
