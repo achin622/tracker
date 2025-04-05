@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Room 3 六年级功课班（周老师）</title>
+  <style>
+    body {
+      font-family: "Arial", sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .date-select {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .class-section {
+      margin-bottom: 40px;
+      border: 2px solid #888;
+      border-radius: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+    }
+    .class-section h2 {
+      margin-top: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    table, th, td {
+      border: 1px solid #aaa;
+    }
+    th, td {
+      padding: 8px;
+      text-align: center;
+      font-size: 14px;
+    }
+    input.homework-input, input.remark-input {
+      width: 95%;
+      padding: 6px;
+      font-size: 16px;
+    }
+    button.status-btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.status-btn.未完成 { background-color: #f44336; color: white; }
+    button.status-btn.完成 { background-color: #4CAF50; color: white; }
+    button.status-btn.缺席 { background-color: #ff9800; color: white; }
+    button.add-btn {
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background-color: #2196F3;
+      color: white;
+    }
+    button.cancel-btn {
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background-color: #9e9e9e;
+      color: white;
+    }
+    .reward {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .reward img {
+      width: 120px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Room 3 六年级功课班（周老师）</h1>
+  <div class="container">
+    <div class="date-select">
+      <label for="recordDate">选择日期：</label>
+      <input type="date" id="recordDate" onchange="onDateChange()">
+    </div>
+    <div id="classes-container"></div>
+  </div>
+
+  <!-- 音效文件 -->
+  <audio id="dingSound" src="https://www.dropbox.com/scl/fi/9l3crk68jhzgwqphyfm54/Ding-Japenese-Sound-Effect.mp3?rlkey=wa8jzqtfx3zjgmnm38fa4mwh9&st=aw3688sk&dl=0"></audio>
+
+  <script>
+    const classes = {
+      "6A": ["陈冠宇", "陈兆綸"],
+      "6R": ["吴慧颖", "黄柏森", "Kimie"],
+      "6L": ["曾宇訢", "杨芷瑜", "章恩语", "Billy"],
+      "6V": ["方思淇", "Jared"],
+      "6B": ["Bryan"]
+    };
+
+    let homeworkData = {};
+
+    function loadHomeworkData() {
+      const data = localStorage.getItem("homeworkData");
+      homeworkData = data ? JSON.parse(data) : {};
+    }
+
+    function saveHomeworkData() {
+      localStorage.setItem("homeworkData", JSON.stringify(homeworkData));
+    }
+
+    function onDateChange() {
+      const date = document.getElementById("recordDate").value;
+      if (!date) return;
+      if (!homeworkData[date]) {
+        homeworkData[date] = {};
+        for (let className in classes) {
+          homeworkData[date][className] = [];
+        }
+        saveHomeworkData();
+      }
+      renderClasses();
+    }
+
+    function renderClasses() {
+      const date = document.getElementById("recordDate").value;
+      if (!date) return;
+      const container = document.getElementById("classes-container");
+      container.innerHTML = "";
+
+      for (let className in classes) {
+        const section = document.createElement("div");
+        section.innerHTML = renderClassSection(className, homeworkData[date][className]);
+        container.appendChild(section);
+        document.getElementById(`add-${className}`).addEventListener("click", () => {
+          addHomeworkRow(className);
+        });
+      }
+    }
+
+    function renderClassSection(className, homeworkList) {
+      let headerRow = `<tr><th>功课描述</th>`;
+      classes[className].forEach(student => {
+        headerRow += `<th>${student}</th>`;
+      });
+      headerRow += `<th>备注</th><th>操作</th></tr>`;
+
+      let rowsHTML = "";
+      homeworkList.forEach((hw, rowIndex) => {
+        rowsHTML += `<tr>`;
+        rowsHTML += `<td><input type="text" class="homework-input" value="${hw.desc}" onchange="updateHomeworkDesc('${className}', ${rowIndex}, this.value)"></td>`;
+        classes[className].forEach(student => {
+          const status = hw.statuses[student] || "未完成";
+          rowsHTML += `<td><button class="status-btn ${status}" onclick="toggleStatus('${className}', ${rowIndex}, '${student}', this)">${status}</button></td>`;
+        });
+        rowsHTML += `<td><input type="text" class="remark-input" value="${hw.remark || ''}" onchange="updateRemark('${className}', ${rowIndex}, this.value)"></td>`;
+        rowsHTML += `<td><button class="cancel-btn" onclick="cancelHomeworkRow('${className}', ${rowIndex})">取消</button></td>`;
+        rowsHTML += `</tr>`;
+      });
+
+      let rewardDiv = `<div class="reward" id="reward-${className}" style="display:none;">
+        🎉 全班完成！奖励你们一只 地表最强的blobfish！<br>
+        <img src="https://media.tenor.com/BB6yfbJK8m8AAAAM/pink-blob-sunglasses.gif" alt="blobfish">
+      </div>`;
+
+      return `
+      <div class="class-section">
+        <h2>${className} 班</h2>
+        <table>
+          <thead>${headerRow}</thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
+        <button class="add-btn" id="add-${className}">+ 添加功课</button>
+        ${rewardDiv}
+      </div>`;
+    }
+
+    function addHomeworkRow(className) {
+      const date = document.getElementById("recordDate").value;
+      const newRow = {
+        desc: "",
+        remark: "",
+        statuses: {}
+      };
+      classes[className].forEach(student => newRow.statuses[student] = "未完成");
+      homeworkData[date][className].push(newRow);
+      saveHomeworkData();
+      renderClasses();
+    }
+
+    function cancelHomeworkRow(className, rowIndex) {
+      const date = document.getElementById("recordDate").value;
+      if (confirm("确定取消这一行功课记录吗？")) {
+        homeworkData[date][className].splice(rowIndex, 1);
+        saveHomeworkData();
+        renderClasses();
+      }
+    }
+
+    function updateHomeworkDesc(className, rowIndex, value) {
+      const date = document.getElementById("recordDate").value;
+      homeworkData[date][className][rowIndex].desc = value;
+      saveHomeworkData();
+    }
+
+    function updateRemark(className, rowIndex, value) {
+      const date = document.getElementById("recordDate").value;
+      homeworkData[date][className][rowIndex].remark = value;
+      saveHomeworkData();
+    }
+
+    function toggleStatus(className, rowIndex, student, btn) {
+      const date = document.getElementById("recordDate").value;
+      const statusOrder = ["未完成", "完成", "缺席"];
+      let current = homeworkData[date][className][rowIndex].statuses[student] || "未完成";
+      let next = statusOrder[(statusOrder.indexOf(current) + 1) % 3];
+      homeworkData[date][className][rowIndex].statuses[student] = next;
+      btn.className = `status-btn ${next}`;
+      btn.innerText = next;
+      saveHomeworkData();
+
+      // 如果变成“完成”，播放音效
+      if (next === "完成") {
+        document.getElementById("dingSound").play();
+      }
+
+      checkClassCompleted(className);
+    }
+
+    function checkClassCompleted(className) {
+      const date = document.getElementById("recordDate").value;
+      const list = homeworkData[date][className];
+      if (list.length === 0) return;
+
+      let allDone = true;
+      for (let hw of list) {
+        for (let student of classes[className]) {
+          if (hw.statuses[student] !== "完成") {
+            allDone = false;
+            break;
+          }
+        }
+        if (!allDone) break;
+      }
+
+      const reward = document.getElementById(`reward-${className}`);
+      if (reward) {
+        reward.style.display = allDone ? "block" : "none";
+      }
+    }
+
+    window.onload = function () {
+      loadHomeworkData();
+      const dateInput = document.getElementById("recordDate");
+      if (!dateInput.value) {
+        dateInput.value = new Date().toISOString().split("T")[0];
+      }
+      onDateChange();
+    };
+  </script>
+</body>
+</html>
